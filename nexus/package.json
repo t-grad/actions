@@ -13,7 +13,7 @@
   "dependencies": {
     "@actions/core": "^1.4.0",
     "@actions/io": "^1.1.1",
-    "ts-dedent": "^2.1.1",
+    "ts-dedent": "^2.2.0",
     "xmlbuilder2": "^2.4.1",
     "yaml": "^1.10.2"
   }
