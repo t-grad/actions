@@ -8,7 +8,7 @@ async function main(): Promise<void> {
     const github = getOctokit(token)
 
     const commit_sha = core.getInput('commit-sha', {required: true})
-    const prs = await github.repos.listPullRequestsAssociatedWithCommit({
+    const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
       ...context.repo,
       commit_sha
     })
@@ -30,7 +30,7 @@ async function checkIfMerged(
   pr: number
 ): Promise<boolean> {
   try {
-    await github.pulls.checkIfMerged({
+    await github.rest.pulls.checkIfMerged({
       ...context.repo,
       pull_number: pr
     })
