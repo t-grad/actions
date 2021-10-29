@@ -1,13 +1,28 @@
-import {create as xmlCreate} from 'xmlbuilder2'
 import {Config, RepoConfig, RepoPolicy} from './config'
+import {create as xmlCreate} from 'xmlbuilder2'
+
+interface GeneratedRepoPolicy {
+  enabled?: boolean
+  checksumPolicy?: string
+  updatePolicy?: string
+}
+
+interface GeneratedRepo {
+  id: string
+  url: string
+  releases?: GeneratedRepoPolicy
+  snapshots?: GeneratedRepoPolicy
+}
 
 function generateRepoPolicy(
   policy?: RepoPolicy
-): {[key: string]: any} | undefined {
-  if (policy && typeof policy.updatePolicy === 'number') {
-    return {updatePolicy: `interval:${policy.updatePolicy}`, ...policy}
+): GeneratedRepoPolicy | undefined {
+  if (!policy) {
+    return undefined
+  } else if (typeof policy.updatePolicy === 'number') {
+    return {...policy, updatePolicy: `interval:${policy.updatePolicy}`}
   } else {
-    return policy
+    return {...policy, updatePolicy: `${policy.updatePolicy}`}
   }
 }
 
@@ -15,7 +30,7 @@ function generateRepo(
   baseUrl: string,
   id: string,
   repo: RepoConfig
-): {[key: string]: any} {
+): GeneratedRepo {
   return {
     id,
     url: `${baseUrl}/repository/${repo.repo}`,
@@ -42,6 +57,7 @@ export function generate(config: Config): string {
       }
     })
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const xmlObj: {[key: string]: any} = {
     settings: {
       '@xmlns': 'http://maven.apache.org/SETTINGS/1.0.0',
