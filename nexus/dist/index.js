@@ -18149,7 +18149,7 @@ var XMLParserImpl = /** @class */ (function () {
                     if (!algorithm_1.xml_isLegalChar(text.data)) {
                         throw new Error("Text data contains invalid characters.");
                     }
-                    context.appendChild(doc.createTextNode(text.data));
+                    context.appendChild(doc.createTextNode(this._decodeText(text.data)));
                     break;
                 case interfaces_1.TokenType.Element:
                     var element = token;
@@ -18231,9 +18231,9 @@ var XMLParserImpl = /** @class */ (function () {
                                 throw new Error("Empty XML namespace is not allowed.");
                             }
                             if (attNamespace !== null)
-                                elementNode.setAttributeNS(attNamespace, attName, attValue);
+                                elementNode.setAttributeNS(attNamespace, attName, this._decodeAttributeValue(attValue));
                             else
-                                elementNode.setAttribute(attName, attValue);
+                                elementNode.setAttribute(attName, this._decodeAttributeValue(attValue));
                         }
                     }
                     catch (e_2_1) { e_2 = { error: e_2_1 }; }
@@ -18261,6 +18261,26 @@ var XMLParserImpl = /** @class */ (function () {
             token = lexer.nextToken();
         }
         return doc;
+    };
+    /**
+     * Decodes serialized text.
+     *
+     * @param text - text value to serialize
+     */
+    XMLParserImpl.prototype._decodeText = function (text) {
+        return text == null ? text : text.replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+    };
+    /**
+     * Decodes serialized attribute value.
+     *
+     * @param text - attribute value to serialize
+     */
+    XMLParserImpl.prototype._decodeAttributeValue = function (text) {
+        return text == null ? text : text.replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
     };
     return XMLParserImpl;
 }());
@@ -27622,25 +27642,9 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
             this.emit("error", new Error("Text data contains invalid characters (well-formed required)."));
             return this;
         }
-        var markup = "";
-        if (this._options.noDoubleEncoding) {
-            markup = node.data.replace(/(?!&(lt|gt|amp|apos|quot);)&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-        }
-        else {
-            for (var i = 0; i < node.data.length; i++) {
-                var c = node.data[i];
-                if (c === "&")
-                    markup += "&amp;";
-                else if (c === "<")
-                    markup += "&lt;";
-                else if (c === ">")
-                    markup += "&gt;";
-                else
-                    markup += c;
-            }
-        }
+        var markup = node.data.replace(/(?!&(lt|gt|amp|apos|quot);)&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
         this._push(this._writer.text(markup));
         return this;
     };
@@ -27732,6 +27736,32 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
         }
         this._docTypeName = options.name;
         this._push(this._writer.docType(options.name, node.publicId, node.systemId));
+        return this;
+    };
+    /** @inheritdoc */
+    XMLBuilderCBImpl.prototype.import = function (node) {
+        var e_2, _a;
+        var frag = BuilderFunctions_1.fragment().set(this._options);
+        try {
+            frag.import(node);
+        }
+        catch (err) {
+            this.emit("error", err);
+            return this;
+        }
+        try {
+            for (var _b = __values(frag.node.childNodes), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var node_1 = _c.value;
+                this._fromNode(node_1);
+            }
+        }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
         return this;
     };
     /** @inheritdoc */
@@ -27915,7 +27945,7 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
      * @param node - root node
      */
     XMLBuilderCBImpl.prototype._fromNode = function (node) {
-        var e_2, _a, e_3, _b;
+        var e_3, _a, e_4, _b;
         if (util_2.Guard.isElementNode(node)) {
             var name = node.prefix ? node.prefix + ":" + node.localName : node.localName;
             if (node.namespaceURI !== null) {
@@ -27936,12 +27966,12 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
                     }
                 }
             }
-            catch (e_2_1) { e_2 = { error: e_2_1 }; }
+            catch (e_3_1) { e_3 = { error: e_3_1 }; }
             finally {
                 try {
                     if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
                 }
-                finally { if (e_2) throw e_2.error; }
+                finally { if (e_3) throw e_3.error; }
             }
             try {
                 for (var _e = __values(node.childNodes), _f = _e.next(); !_f.done; _f = _e.next()) {
@@ -27949,12 +27979,12 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
                     this._fromNode(child);
                 }
             }
-            catch (e_3_1) { e_3 = { error: e_3_1 }; }
+            catch (e_4_1) { e_4 = { error: e_4_1 }; }
             finally {
                 try {
                     if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
                 }
-                finally { if (e_3) throw e_3.error; }
+                finally { if (e_4) throw e_4.error; }
             }
             this.up();
         }
@@ -27983,7 +28013,7 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
      * @param requireWellFormed - whether to check conformance
      */
     XMLBuilderCBImpl.prototype._serializeAttributes = function (node, map, prefixIndex, localPrefixesMap, ignoreNamespaceDefinitionAttribute, requireWellFormed) {
-        var e_4, _a;
+        var e_5, _a;
         var localNameSet = requireWellFormed ? new LocalNameSet_1.LocalNameSet() : undefined;
         try {
             for (var _b = __values(node.attributes), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -28053,12 +28083,12 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
                 this._push(this._writer.attribute((candidatePrefix !== null ? candidatePrefix + ":" : "") + attr.localName, this._serializeAttributeValue(attr.value, this._options.wellFormed)));
             }
         }
-        catch (e_4_1) { e_4 = { error: e_4_1 }; }
+        catch (e_5_1) { e_5 = { error: e_5_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
             }
-            finally { if (e_4) throw e_4.error; }
+            finally { if (e_5) throw e_5.error; }
         }
     };
     /**
@@ -28074,29 +28104,10 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
         }
         if (value === null)
             return "";
-        if (this._options.noDoubleEncoding) {
-            return value.replace(/(?!&(lt|gt|amp|apos|quot);)&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-        else {
-            var result = "";
-            for (var i = 0; i < value.length; i++) {
-                var c = value[i];
-                if (c === "\"")
-                    result += "&quot;";
-                else if (c === "&")
-                    result += "&amp;";
-                else if (c === "<")
-                    result += "&lt;";
-                else if (c === ">")
-                    result += "&gt;";
-                else
-                    result += c;
-            }
-            return result;
-        }
+        return value.replace(/(?!&(lt|gt|amp|apos|quot);)&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     };
     /**
      * Records namespace information for the given element and returns the
@@ -28107,7 +28118,7 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
      * @param localPrefixesMap - local prefixes map
      */
     XMLBuilderCBImpl.prototype._recordNamespaceInformation = function (node, map, localPrefixesMap) {
-        var e_5, _a;
+        var e_6, _a;
         var defaultNamespaceAttrValue = null;
         try {
             for (var _b = __values(node.attributes), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -28137,12 +28148,12 @@ var XMLBuilderCBImpl = /** @class */ (function (_super) {
                 }
             }
         }
-        catch (e_5_1) { e_5 = { error: e_5_1 }; }
+        catch (e_6_1) { e_6 = { error: e_6_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
             }
-            finally { if (e_5) throw e_5.error; }
+            finally { if (e_6) throw e_6.error; }
         }
         return defaultNamespaceAttrValue;
     };
@@ -29251,7 +29262,7 @@ exports.DefaultXMLBuilderCBOptions = {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var dom_1 = __nccwpck_require__(8239);
 /**
- * Pre-serializes XML nodes.
+ * Parses XML nodes.
  */
 var BaseReader = /** @class */ (function () {
     /**
@@ -29288,6 +29299,28 @@ var BaseReader = /** @class */ (function () {
     };
     BaseReader.prototype._sanitize = function (str) {
         return dom_1.sanitizeInput(str, this._builderOptions.invalidCharReplacement);
+    };
+    /**
+     * Decodes serialized text.
+     *
+     * @param text - text value to serialize
+     */
+    BaseReader.prototype._decodeText = function (text) {
+        if (text == null)
+            return text;
+        return text.replace(/&(quot|amp|apos|lt|gt);/g, function (_match, tag) {
+            return BaseReader._entityTable[tag];
+        }).replace(/&#(?:x([a-fA-F0-9]+)|([0-9]+));/g, function (_match, hexStr, numStr) {
+            return String.fromCodePoint(parseInt(hexStr || numStr, hexStr ? 16 : 10));
+        });
+    };
+    /**
+     * Decodes serialized attribute value.
+     *
+     * @param text - attribute value to serialize
+     */
+    BaseReader.prototype._decodeAttributeValue = function (text) {
+        return this._decodeText(text);
     };
     /**
      * Main parser function which parses the given object and returns an XMLBuilder.
@@ -29380,6 +29413,13 @@ var BaseReader = /** @class */ (function () {
      */
     BaseReader.prototype.sanitize = function (str) {
         return this._sanitize(str);
+    };
+    BaseReader._entityTable = {
+        "lt": "<",
+        "gt": ">",
+        "amp": "&",
+        "quot": '"',
+        "apos": "'",
     };
     return BaseReader;
 }());
@@ -29480,7 +29520,7 @@ var ObjectReader = /** @class */ (function (_super) {
         else if (util_1.isArray(obj) || util_1.isSet(obj)) {
             util_1.forEachArray(obj, function (item) { return lastChild = _this.parse(node, item); }, this);
         }
-        else /* if (isMap(obj) || isObject(obj)) */ {
+        else if (util_1.isMap(obj) || util_1.isObject(obj)) {
             // expand if object
             util_1.forEachObject(obj, function (key, val) {
                 if (util_1.isFunction(val)) {
@@ -29495,12 +29535,12 @@ var ObjectReader = /** @class */ (function (_super) {
                         }
                         else /* if (isMap(val) || isObject(val)) */ {
                             util_1.forEachObject(val, function (attrKey, attrVal) {
-                                lastChild = _this.attribute(node, undefined, _this.sanitize(attrKey), _this.sanitize(attrVal)) || lastChild;
+                                lastChild = _this.attribute(node, undefined, _this.sanitize(attrKey), _this._decodeAttributeValue(_this.sanitize(attrVal))) || lastChild;
                             });
                         }
                     }
                     else {
-                        lastChild = _this.attribute(node, undefined, _this.sanitize(key.substr(options.convert.att.length)), _this.sanitize(val)) || lastChild;
+                        lastChild = _this.attribute(node, undefined, _this.sanitize(key.substr(options.convert.att.length)), _this._decodeAttributeValue(_this.sanitize(val))) || lastChild;
                     }
                 }
                 else if (!options.ignoreConverters && key.indexOf(options.convert.text) === 0) {
@@ -29510,7 +29550,7 @@ var ObjectReader = /** @class */ (function (_super) {
                         lastChild = _this.parse(node, val);
                     }
                     else {
-                        lastChild = _this.text(node, _this.sanitize(val)) || lastChild;
+                        lastChild = _this.text(node, _this._decodeText(_this.sanitize(val))) || lastChild;
                     }
                 }
                 else if (!options.ignoreConverters && key.indexOf(options.convert.cdata) === 0) {
@@ -29583,7 +29623,7 @@ var ObjectReader = /** @class */ (function (_super) {
                     var parent = _this.element(node, undefined, _this.sanitize(key));
                     if (parent) {
                         lastChild = parent;
-                        _this.text(parent, _this.sanitize(val));
+                        _this.text(parent, _this._decodeText(_this.sanitize(val)));
                     }
                 }
                 else {
@@ -29591,6 +29631,13 @@ var ObjectReader = /** @class */ (function (_super) {
                     lastChild = _this.element(node, undefined, _this.sanitize(key)) || lastChild;
                 }
             }, this);
+        }
+        else if (!options.keepNullNodes && (obj == null)) {
+            // skip null and undefined nodes
+        }
+        else {
+            // text node
+            lastChild = this.text(node, this._decodeText(this.sanitize(obj))) || lastChild;
         }
         return lastChild || node;
     };
@@ -29669,6 +29716,7 @@ var XMLReader = /** @class */ (function (_super) {
     XMLReader.prototype._parse = function (node, str) {
         var e_1, _a, e_2, _b;
         var lexer = new XMLStringLexer_1.XMLStringLexer(str, { skipWhitespaceOnlyText: true });
+        var lastChild = node;
         var context = node;
         var token = lexer.nextToken();
         while (token.type !== interfaces_1.TokenType.EOF) {
@@ -29708,7 +29756,7 @@ var XMLReader = /** @class */ (function (_super) {
                     break;
                 case interfaces_1.TokenType.Text:
                     var text = token;
-                    context = this.text(context, this.sanitize(text.data)) || context;
+                    context = this.text(context, this._decodeText(this.sanitize(text.data))) || context;
                     break;
                 case interfaces_1.TokenType.Element:
                     var element = token;
@@ -29752,6 +29800,8 @@ var XMLReader = /** @class */ (function (_super) {
                         this.element(context, undefined, elementName));
                     if (elementNode === undefined)
                         break;
+                    if (context.node === node.node)
+                        lastChild = elementNode;
                     try {
                         // assign attributes
                         for (var _h = (e_2 = void 0, __values(element.attributes)), _j = _h.next(); !_j.done; _j = _h.next()) {
@@ -29774,9 +29824,9 @@ var XMLReader = /** @class */ (function (_super) {
                                 }
                             }
                             if (attNamespace !== null)
-                                this.attribute(elementNode, attNamespace, attName, attValue);
+                                this.attribute(elementNode, attNamespace, attName, this._decodeAttributeValue(attValue));
                             else
-                                this.attribute(elementNode, undefined, attName, attValue);
+                                this.attribute(elementNode, undefined, attName, this._decodeAttributeValue(attValue));
                         }
                     }
                     catch (e_2_1) { e_2 = { error: e_2_1 }; }
@@ -29799,7 +29849,7 @@ var XMLReader = /** @class */ (function (_super) {
             }
             token = lexer.nextToken();
         }
-        return context;
+        return lastChild;
     };
     return XMLReader;
 }(BaseReader_1.BaseReader));
@@ -30078,7 +30128,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype.serializeNode = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype.serializeNode = function (node, requireWellFormed) {
         var hasNamespaces = (node._nodeDocument !== undefined && node._nodeDocument._hasNamespaces);
         this.level = 0;
         this.currentNode = node;
@@ -30111,10 +30161,10 @@ var BaseWriter = /** @class */ (function () {
              * of the algorithm, then catch that exception and throw an
              * "InvalidStateError" DOMException.
              */
-            this._serializeNodeNS(node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding);
+            this._serializeNodeNS(node, namespace, prefixMap, prefixIndex, requireWellFormed);
         }
         else {
-            this._serializeNode(node, requireWellFormed, noDoubleEncoding);
+            this._serializeNode(node, requireWellFormed);
         }
     };
     /**
@@ -30126,32 +30176,32 @@ var BaseWriter = /** @class */ (function () {
      * @param prefixIndex - generated namespace prefix index
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeNodeNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeNodeNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed) {
         this.currentNode = node;
         switch (node.nodeType) {
             case interfaces_1.NodeType.Element:
-                this._serializeElementNS(node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding);
+                this._serializeElementNS(node, namespace, prefixMap, prefixIndex, requireWellFormed);
                 break;
             case interfaces_1.NodeType.Document:
-                this._serializeDocumentNS(node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding);
+                this._serializeDocumentNS(node, namespace, prefixMap, prefixIndex, requireWellFormed);
                 break;
             case interfaces_1.NodeType.Comment:
-                this._serializeComment(node, requireWellFormed, noDoubleEncoding);
+                this._serializeComment(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.Text:
-                this._serializeText(node, requireWellFormed, noDoubleEncoding);
+                this._serializeText(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.DocumentFragment:
-                this._serializeDocumentFragmentNS(node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding);
+                this._serializeDocumentFragmentNS(node, namespace, prefixMap, prefixIndex, requireWellFormed);
                 break;
             case interfaces_1.NodeType.DocumentType:
-                this._serializeDocumentType(node, requireWellFormed, noDoubleEncoding);
+                this._serializeDocumentType(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.ProcessingInstruction:
-                this._serializeProcessingInstruction(node, requireWellFormed, noDoubleEncoding);
+                this._serializeProcessingInstruction(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.CData:
-                this._serializeCData(node, requireWellFormed, noDoubleEncoding);
+                this._serializeCData(node, requireWellFormed);
                 break;
             default:
                 throw new Error("Unknown node type: " + node.nodeType);
@@ -30163,32 +30213,32 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeNode = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeNode = function (node, requireWellFormed) {
         this.currentNode = node;
         switch (node.nodeType) {
             case interfaces_1.NodeType.Element:
-                this._serializeElement(node, requireWellFormed, noDoubleEncoding);
+                this._serializeElement(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.Document:
-                this._serializeDocument(node, requireWellFormed, noDoubleEncoding);
+                this._serializeDocument(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.Comment:
-                this._serializeComment(node, requireWellFormed, noDoubleEncoding);
+                this._serializeComment(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.Text:
-                this._serializeText(node, requireWellFormed, noDoubleEncoding);
+                this._serializeText(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.DocumentFragment:
-                this._serializeDocumentFragment(node, requireWellFormed, noDoubleEncoding);
+                this._serializeDocumentFragment(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.DocumentType:
-                this._serializeDocumentType(node, requireWellFormed, noDoubleEncoding);
+                this._serializeDocumentType(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.ProcessingInstruction:
-                this._serializeProcessingInstruction(node, requireWellFormed, noDoubleEncoding);
+                this._serializeProcessingInstruction(node, requireWellFormed);
                 break;
             case interfaces_1.NodeType.CData:
-                this._serializeCData(node, requireWellFormed, noDoubleEncoding);
+                this._serializeCData(node, requireWellFormed);
                 break;
             default:
                 throw new Error("Unknown node type: " + node.nodeType);
@@ -30203,7 +30253,7 @@ var BaseWriter = /** @class */ (function () {
      * @param prefixIndex - generated namespace prefix index
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeElementNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeElementNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed) {
         var e_2, _a;
         var attributes = [];
         /**
@@ -30401,7 +30451,7 @@ var BaseWriter = /** @class */ (function () {
                  * 12.5.5.6. """ (U+0022 QUOTATION MARK).
                  */
                 attributes.push([null, 'xmlns', prefix,
-                    this._serializeAttributeValue(ns, requireWellFormed, noDoubleEncoding)]);
+                    this._serializeAttributeValue(ns, requireWellFormed)]);
                 /**
                  * 12.5.5.7. If local default namespace is not null (there exists a
                  * locally-defined default namespace declaration attribute), then
@@ -30456,7 +30506,7 @@ var BaseWriter = /** @class */ (function () {
                  * 12.6.5.5. """ (U+0022 QUOTATION MARK).
                  */
                 attributes.push([null, null, 'xmlns',
-                    this._serializeAttributeValue(ns, requireWellFormed, noDoubleEncoding)]);
+                    this._serializeAttributeValue(ns, requireWellFormed)]);
                 /**
                  * 12.7. Otherwise, the node has a local default namespace that matches
                  * ns. Append to qualified name the value of node's localName, let the
@@ -30476,7 +30526,7 @@ var BaseWriter = /** @class */ (function () {
          * attributes given map, prefix index, local prefixes map, ignore namespace
          * definition attribute flag, and require well-formed flag.
          */
-        attributes.push.apply(attributes, __spread(this._serializeAttributesNS(node, map, prefixIndex, localPrefixesMap, ignoreNamespaceDefinitionAttribute, requireWellFormed, noDoubleEncoding)));
+        attributes.push.apply(attributes, __spread(this._serializeAttributesNS(node, map, prefixIndex, localPrefixesMap, ignoreNamespaceDefinitionAttribute, requireWellFormed)));
         this.attributes(attributes);
         /**
          * 14. If ns is the HTML namespace, and the node's list of children is
@@ -30537,7 +30587,7 @@ var BaseWriter = /** @class */ (function () {
                 for (var _b = __values(node.childNodes), _c = _b.next(); !_c.done; _c = _b.next()) {
                     var childNode = _c.value;
                     this.level++;
-                    this._serializeNodeNS(childNode, inheritedNS, map, prefixIndex, requireWellFormed, noDoubleEncoding);
+                    this._serializeNodeNS(childNode, inheritedNS, map, prefixIndex, requireWellFormed);
                     this.level--;
                 }
             }
@@ -30565,7 +30615,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeElement = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeElement = function (node, requireWellFormed) {
         var e_3, _a;
         /**
          * From: https://w3c.github.io/DOM-Parsing/#xml-serializing-an-element-node
@@ -30630,7 +30680,7 @@ var BaseWriter = /** @class */ (function () {
          * attributes given map, prefix index, local prefixes map, ignore namespace
          * definition attribute flag, and require well-formed flag.
          */
-        var attributes = this._serializeAttributes(node, requireWellFormed, noDoubleEncoding);
+        var attributes = this._serializeAttributes(node, requireWellFormed);
         this.attributes(attributes);
         /**
          * 14. If ns is the HTML namespace, and the node's list of children is
@@ -30680,7 +30730,7 @@ var BaseWriter = /** @class */ (function () {
             for (var _b = __values(node._children), _c = _b.next(); !_c.done; _c = _b.next()) {
                 var childNode = _c.value;
                 this.level++;
-                this._serializeNode(childNode, requireWellFormed, noDoubleEncoding);
+                this._serializeNode(childNode, requireWellFormed);
                 this.level--;
             }
         }
@@ -30710,7 +30760,7 @@ var BaseWriter = /** @class */ (function () {
      * @param prefixIndex - generated namespace prefix index
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeDocumentNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeDocumentNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed) {
         var e_4, _a;
         /**
          * If the require well-formed flag is set (its value is true), and this node
@@ -30738,7 +30788,7 @@ var BaseWriter = /** @class */ (function () {
             */
             for (var _b = __values(node.childNodes), _c = _b.next(); !_c.done; _c = _b.next()) {
                 var childNode = _c.value;
-                this._serializeNodeNS(childNode, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding);
+                this._serializeNodeNS(childNode, namespace, prefixMap, prefixIndex, requireWellFormed);
             }
         }
         catch (e_4_1) { e_4 = { error: e_4_1 }; }
@@ -30755,7 +30805,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeDocument = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeDocument = function (node, requireWellFormed) {
         var e_5, _a;
         /**
          * If the require well-formed flag is set (its value is true), and this node
@@ -30783,7 +30833,7 @@ var BaseWriter = /** @class */ (function () {
             */
             for (var _b = __values(node._children), _c = _b.next(); !_c.done; _c = _b.next()) {
                 var childNode = _c.value;
-                this._serializeNode(childNode, requireWellFormed, noDoubleEncoding);
+                this._serializeNode(childNode, requireWellFormed);
             }
         }
         catch (e_5_1) { e_5 = { error: e_5_1 }; }
@@ -30800,7 +30850,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeComment = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeComment = function (node, requireWellFormed) {
         /**
          * If the require well-formed flag is set (its value is true), and node's
          * data contains characters that are not matched by the XML Char production
@@ -30824,7 +30874,7 @@ var BaseWriter = /** @class */ (function () {
      * @param requireWellFormed - whether to check conformance
      * @param level - current depth of the XML tree
      */
-    BaseWriter.prototype._serializeText = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeText = function (node, requireWellFormed) {
         /**
          * 1. If the require well-formed flag is set (its value is true), and
          * node's data contains characters that are not matched by the XML Char
@@ -30841,25 +30891,9 @@ var BaseWriter = /** @class */ (function () {
          * 5. Replace any occurrences of ">" in markup by "&gt;".
          * 6. Return the value of markup.
          */
-        var markup = "";
-        if (noDoubleEncoding) {
-            markup = node.data.replace(/(?!&(lt|gt|amp|apos|quot);)&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-        }
-        else {
-            for (var i = 0; i < node.data.length; i++) {
-                var c = node.data[i];
-                if (c === "&")
-                    markup += "&amp;";
-                else if (c === "<")
-                    markup += "&lt;";
-                else if (c === ">")
-                    markup += "&gt;";
-                else
-                    markup += c;
-            }
-        }
+        var markup = node.data.replace(/(?!&([^&;]*);)&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
         this.text(markup);
     };
     /**
@@ -30871,7 +30905,7 @@ var BaseWriter = /** @class */ (function () {
      * @param prefixIndex - generated namespace prefix index
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeDocumentFragmentNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeDocumentFragmentNS = function (node, namespace, prefixMap, prefixIndex, requireWellFormed) {
         var e_6, _a;
         try {
             /**
@@ -30883,7 +30917,7 @@ var BaseWriter = /** @class */ (function () {
              */
             for (var _b = __values(node.childNodes), _c = _b.next(); !_c.done; _c = _b.next()) {
                 var childNode = _c.value;
-                this._serializeNodeNS(childNode, namespace, prefixMap, prefixIndex, requireWellFormed, noDoubleEncoding);
+                this._serializeNodeNS(childNode, namespace, prefixMap, prefixIndex, requireWellFormed);
             }
         }
         catch (e_6_1) { e_6 = { error: e_6_1 }; }
@@ -30900,7 +30934,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeDocumentFragment = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeDocumentFragment = function (node, requireWellFormed) {
         var e_7, _a;
         try {
             /**
@@ -30912,7 +30946,7 @@ var BaseWriter = /** @class */ (function () {
              */
             for (var _b = __values(node._children), _c = _b.next(); !_c.done; _c = _b.next()) {
                 var childNode = _c.value;
-                this._serializeNode(childNode, requireWellFormed, noDoubleEncoding);
+                this._serializeNode(childNode, requireWellFormed);
             }
         }
         catch (e_7_1) { e_7 = { error: e_7_1 }; }
@@ -30929,7 +30963,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeDocumentType = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeDocumentType = function (node, requireWellFormed) {
         /**
          * 1. If the require well-formed flag is true and the node's publicId
          * attribute contains characters that are not matched by the XML PubidChar
@@ -30987,7 +31021,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeProcessingInstruction = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeProcessingInstruction = function (node, requireWellFormed) {
         /**
          * 1. If the require well-formed flag is set (its value is true), and node's
          * target contains a ":" (U+003A COLON) character or is an ASCII
@@ -31025,7 +31059,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeCData = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeCData = function (node, requireWellFormed) {
         if (requireWellFormed && (node.data.indexOf("]]>") !== -1)) {
             throw new Error("CDATA contains invalid characters (well-formed required).");
         }
@@ -31042,7 +31076,7 @@ var BaseWriter = /** @class */ (function () {
      * attributes
      * @param requireWellFormed - whether to check conformance
     */
-    BaseWriter.prototype._serializeAttributesNS = function (node, map, prefixIndex, localPrefixesMap, ignoreNamespaceDefinitionAttribute, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeAttributesNS = function (node, map, prefixIndex, localPrefixesMap, ignoreNamespaceDefinitionAttribute, requireWellFormed) {
         var e_8, _a;
         /**
          * 1. Let result be the empty string.
@@ -31066,7 +31100,7 @@ var BaseWriter = /** @class */ (function () {
                 // Optimize common case
                 if (!requireWellFormed && !ignoreNamespaceDefinitionAttribute && attr.namespaceURI === null) {
                     result.push([null, null, attr.localName,
-                        this._serializeAttributeValue(attr.value, requireWellFormed, noDoubleEncoding)]);
+                        this._serializeAttributeValue(attr.value, requireWellFormed)]);
                     continue;
                 }
                 /**
@@ -31200,7 +31234,7 @@ var BaseWriter = /** @class */ (function () {
                          * 3.5.3.2.6. """ (U+0022 QUOTATION MARK).
                         */
                         result.push([null, "xmlns", candidatePrefix,
-                            this._serializeAttributeValue(attributeNamespace, requireWellFormed, noDoubleEncoding)]);
+                            this._serializeAttributeValue(attributeNamespace, requireWellFormed)]);
                     }
                 }
                 /**
@@ -31234,7 +31268,7 @@ var BaseWriter = /** @class */ (function () {
                  * 3.9.4. """ (U+0022 QUOTATION MARK).
                  */
                 result.push([attributeNamespace, candidatePrefix, attr.localName,
-                    this._serializeAttributeValue(attr.value, requireWellFormed, noDoubleEncoding)]);
+                    this._serializeAttributeValue(attr.value, requireWellFormed)]);
             }
         }
         catch (e_8_1) { e_8 = { error: e_8_1 }; }
@@ -31255,7 +31289,7 @@ var BaseWriter = /** @class */ (function () {
      * @param node - node to serialize
      * @param requireWellFormed - whether to check conformance
     */
-    BaseWriter.prototype._serializeAttributes = function (node, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeAttributes = function (node, requireWellFormed) {
         var e_9, _a;
         /**
          * 1. Let result be the empty string.
@@ -31279,7 +31313,7 @@ var BaseWriter = /** @class */ (function () {
                 // Optimize common case
                 if (!requireWellFormed) {
                     result.push([null, null, attr.localName,
-                        this._serializeAttributeValue(attr.value, requireWellFormed, noDoubleEncoding)]);
+                        this._serializeAttributeValue(attr.value, requireWellFormed)]);
                     continue;
                 }
                 /**
@@ -31328,7 +31362,7 @@ var BaseWriter = /** @class */ (function () {
                  * 3.9.4. """ (U+0022 QUOTATION MARK).
                  */
                 result.push([null, null, attr.localName,
-                    this._serializeAttributeValue(attr.value, requireWellFormed, noDoubleEncoding)]);
+                    this._serializeAttributeValue(attr.value, requireWellFormed)]);
             }
         }
         catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -31488,7 +31522,7 @@ var BaseWriter = /** @class */ (function () {
      * @param value - attribute value
      * @param requireWellFormed - whether to check conformance
      */
-    BaseWriter.prototype._serializeAttributeValue = function (value, requireWellFormed, noDoubleEncoding) {
+    BaseWriter.prototype._serializeAttributeValue = function (value, requireWellFormed) {
         /**
          * From: https://w3c.github.io/DOM-Parsing/#dfn-serializing-an-attribute-value
          *
@@ -31517,29 +31551,10 @@ var BaseWriter = /** @class */ (function () {
          * grammar requirement in the XML specification's AttValue production by
          * also replacing ">" characters.
          */
-        if (noDoubleEncoding) {
-            return value.replace(/(?!&(lt|gt|amp|apos|quot);)&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-        else {
-            var result = "";
-            for (var i = 0; i < value.length; i++) {
-                var c = value[i];
-                if (c === "\"")
-                    result += "&quot;";
-                else if (c === "&")
-                    result += "&amp;";
-                else if (c === "<")
-                    result += "&lt;";
-                else if (c === ">")
-                    result += "&gt;";
-                else
-                    result += c;
-            }
-            return result;
-        }
+        return value.replace(/(?!&([^&;]*);)&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     };
     BaseWriter._VoidElementNames = new Set(['area', 'base', 'basefont',
         'bgsound', 'br', 'col', 'embed', 'frame', 'hr', 'img', 'input', 'keygen',
@@ -31779,7 +31794,6 @@ var JSONWriter = /** @class */ (function (_super) {
         // provide default options
         _this._writerOptions = util_1.applyDefaults(writerOptions, {
             wellFormed: false,
-            noDoubleEncoding: false,
             prettyPrint: false,
             indent: '  ',
             newline: '\n',
@@ -31799,8 +31813,7 @@ var JSONWriter = /** @class */ (function (_super) {
         // convert to object
         var objectWriterOptions = util_1.applyDefaults(this._writerOptions, {
             format: "object",
-            wellFormed: false,
-            noDoubleEncoding: false,
+            wellFormed: false
         });
         var objectWriter = new ObjectWriter_1.ObjectWriter(this._builderOptions, objectWriterOptions);
         var val = objectWriter.serialize(node);
@@ -32000,7 +32013,6 @@ var MapWriter = /** @class */ (function (_super) {
         _this._writerOptions = util_1.applyDefaults(writerOptions, {
             format: "map",
             wellFormed: false,
-            noDoubleEncoding: false,
             group: false,
             verbose: false
         });
@@ -32016,7 +32028,6 @@ var MapWriter = /** @class */ (function (_super) {
         var objectWriterOptions = util_1.applyDefaults(this._writerOptions, {
             format: "object",
             wellFormed: false,
-            noDoubleEncoding: false,
             verbose: false
         });
         var objectWriter = new ObjectWriter_1.ObjectWriter(this._builderOptions, objectWriterOptions);
@@ -32103,7 +32114,6 @@ var ObjectWriter = /** @class */ (function (_super) {
         _this._writerOptions = util_1.applyDefaults(writerOptions, {
             format: "object",
             wellFormed: false,
-            noDoubleEncoding: false,
             group: false,
             verbose: false
         });
@@ -32137,7 +32147,7 @@ var ObjectWriter = /** @class */ (function (_super) {
          *   ]
          * ]
          */
-        this.serializeNode(node, this._writerOptions.wellFormed, this._writerOptions.noDoubleEncoding);
+        this.serializeNode(node, this._writerOptions.wellFormed);
         /**
          * Second pass, process node lists. Above example becomes:
          * {
@@ -32758,7 +32768,6 @@ var XMLWriter = /** @class */ (function (_super) {
         // provide default options
         _this._writerOptions = util_1.applyDefaults(writerOptions, {
             wellFormed: false,
-            noDoubleEncoding: false,
             headless: false,
             prettyPrint: false,
             indent: "  ",
@@ -32783,7 +32792,7 @@ var XMLWriter = /** @class */ (function (_super) {
             this.declaration(this._builderOptions.version, this._builderOptions.encoding, this._builderOptions.standalone);
         }
         // recursively serialize node
-        this.serializeNode(node, this._writerOptions.wellFormed, this._writerOptions.noDoubleEncoding);
+        this.serializeNode(node, this._writerOptions.wellFormed);
         // remove trailing newline
         if (this._writerOptions.prettyPrint &&
             this._refs.markup.slice(-this._writerOptions.newline.length) === this._writerOptions.newline) {
@@ -33178,7 +33187,6 @@ var YAMLWriter = /** @class */ (function (_super) {
         // provide default options
         _this._writerOptions = util_1.applyDefaults(writerOptions, {
             wellFormed: false,
-            noDoubleEncoding: false,
             indent: '  ',
             newline: '\n',
             offset: 0,
@@ -33203,8 +33211,7 @@ var YAMLWriter = /** @class */ (function (_super) {
         // convert to object
         var objectWriterOptions = util_1.applyDefaults(this._writerOptions, {
             format: "object",
-            wellFormed: false,
-            noDoubleEncoding: false,
+            wellFormed: false
         });
         var objectWriter = new ObjectWriter_1.ObjectWriter(this._builderOptions, objectWriterOptions);
         var val = objectWriter.serialize(node);
