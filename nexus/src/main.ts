@@ -35,7 +35,7 @@ async function main(): Promise<void> {
 
     await write(settingsDir, generate(config))
   } catch (error) {
-    core.setFailed(error.message)
+    if (error instanceof Error) core.setFailed(error.message)
   }
 }
 
