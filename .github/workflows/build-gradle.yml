@@ -81,7 +81,7 @@ jobs:
           
           BUILD_PARAMS="-Prelease.useLastTag=$([[ "${GITHUB_REF}" = refs/tags/v* ]] && echo true || echo false)"
           [[ "${CONFIGURATION_CACHE}" = true ]] && BUILD_PARAMS="${BUILD_PARAMS} --configuration-cache"
-          printf 'BUILD_PARAMS="%s"' "${BUILD_PARAMS}" >> ${GITHUB_ENV}
+          echo "BUILD_PARAMS=${BUILD_PARAMS}" >> ${GITHUB_ENV}
           
           ID=${GITHUB_REF_NAME:-$GITHUB_SHA}
           URL=${BASE_URL}/tree/${ID}
@@ -96,7 +96,7 @@ jobs:
             pull_request:*) TYPE="PR" ;;
             *) TYPE="Tag" ;;
           esac
-          printf 'REF_DESC="%s <%s|`%s`>"' ${TYPE} ${URL} ${ID} >> ${GITHUB_ENV}
+          echo "REF_DESC=${TYPE} <${URL}|\`${ID}\`" >> ${GITHUB_ENV}
         env:
           CONFIGURATION_CACHE: ${{ inputs.use-configuration-cache }}
 
