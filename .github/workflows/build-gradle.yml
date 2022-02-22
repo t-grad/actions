@@ -18,11 +18,6 @@ on:
         description: Enable Gradle configuration cache
         required: false
         default: false
-      slack-channel:
-        type: string
-        description: Slack channel for notifications, enable notifications if not empty
-        required: false
-        default: ''
     secrets:
       nexus-url:
         description: Nexus base URL
@@ -36,6 +31,9 @@ on:
       slack-bot-token:
         description: Slack bot token
         required: false
+      slack-channel:
+        description: Slack channel id for notifications, enable notifications if not empty
+        required: false
 
 permissions:
   contents: read
@@ -43,6 +41,9 @@ permissions:
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_type == 'push' && github.ref || github.event.number }}
   cancel-in-progress: true
+
+env:
+  SLACK_CHANNEL: ${{ secrets.slack-channel }}
 
 jobs:
   wrapper:
@@ -124,10 +125,10 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Slack notification
-        if: ${{ !!inputs.slack-channel && always() }}
+        if: ${{ !!env.SLACK_CHANNEL && always() }}
         uses: slackapi/slack-github-action@v1.18.0
         with:
-          channel-id: ${{ inputs.slack-channel }}
+          channel-id: ${{ env.SLACK_CHANNEL }}
           payload: |
             {
               "text": "${{ github.repository }} build *${{ job.status }}*: ${{ env.REF_DESC }}",

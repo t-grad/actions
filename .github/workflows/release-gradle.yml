@@ -13,10 +13,6 @@ on:
         description: JDK distribution for gradle build
         required: false
         default: temurin
-      slack-channel:
-        type: string
-        description: Slack channel for notifications, enable notifications if not empty
-        required: true
     secrets:
       nexus-url:
         description: Nexus base URL
@@ -29,6 +25,9 @@ on:
         required: true
       slack-bot-token:
         description: Slack bot token
+        required: true
+      slack-channel:
+        description: Slack channel id for notifications, enable notifications if not empty
         required: true
 
 permissions:
@@ -63,10 +62,9 @@ jobs:
           distribution: ${{ inputs.java-distribution }}
 
       - name: Slack notification
-        if: ${{ !!inputs.slack-channel }}
         uses: slackapi/slack-github-action@v1.18.0
         with:
-          channel-id: ${{ inputs.slack-channel }}
+          channel-id: ${{ secrets.slack-channel }}
           payload: |
             {
               "text": "${{ github.repository }} release ${{ github.ref_name }} *started*",
@@ -103,10 +101,10 @@ jobs:
           cache-read-only: true
 
       - name: Slack notification
-        if: ${{ !!inputs.slack-channel && always() }}
+        if: ${{ always() }}
         uses: slackapi/slack-github-action@v1.18.0
         with:
-          channel-id: ${{ inputs.slack-channel }}
+          channel-id: ${{ secrets.slack-channel }}
           payload: |
             {
               "text": "${{ github.repository }} release ${{ github.ref_name }} *${{ job.status }}*",
