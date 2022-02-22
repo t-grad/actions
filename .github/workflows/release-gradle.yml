@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        description: JDK version for gradle build
+        required: false
+        default: '17'
+      java-distribution:
+        type: string
+        description: JDK distribution for gradle build
+        required: false
+        default: temurin
+      slack-channel:
+        type: string
+        description: Slack channel for notifications, enable notifications if not empty
+        required: true
+    secrets:
+      nexus-url:
+        description: Nexus base URL
+        required: true
+      nexus-username:
+        description: Nexus username
+        required: true
+      nexus-password:
+        description: Nexus password
+        required: true
+      slack-bot-token:
+        description: Slack bot token
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ github.server_url }}/${{ github.repository }}
+
+    steps:
+      - name: Preconditions check
+        run: |
+          if [[ $GITHUB_REF != refs/tags/v* ]] ; then
+            echo "Expected refs/tags/v* but got ${GITHUB_REF}"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: ${{ inputs.java-distribution }}
+
+      - name: Slack notification
+        if: ${{ !!inputs.slack-channel }}
+        uses: slackapi/slack-github-action@v1.18.0
+        with:
+          channel-id: ${{ inputs.slack-channel }}
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "header", 
+                  "text": {"type": "plain_text", "text": "${{ github.repository }} release"}
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${ github.ref_name }}`>"},
+                    {"type": "mrkdwn", "text": "Status: *started*"},
+                    {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
+                    {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.slack-bot-token }}
+
+      - name: Publish
+        id: gradle-publish
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: |
+            publish
+            -Prelease.useLastTag=true
+            -Prelease.approve=true
+            -PnexusUrl=$(( secrets.nexus-url }}
+            -PnexusUsername=${{ secrets.nexus-username }}
+            -PnexusPassword=${{ secrets.nexus-password }}
+          cache-read-only: true
+
+      - name: Slack notification
+        if: ${{ !!inputs.slack-channel && always() }}
+        uses: slackapi/slack-github-action@v1.18.0
+        with:
+          channel-id: ${{ inputs.slack-channel }}
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "header", 
+                  "text": {"type": "plain_text", "text": "${{ github.repository }} release"}
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${ github.ref_name }}`>"},
+                    {"type": "mrkdwn", "text": "Status: *${{ job.status }}*"},
+                    {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
+                    {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.slack-bot-token }}
