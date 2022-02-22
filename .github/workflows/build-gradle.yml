@@ -95,7 +95,7 @@ jobs:
             pull_request:*) TYPE="PR" ;;
             *) TYPE="Tag" ;;
           esac
-          printf 'REF_DESC="%s <%s|`%s`>"' ${TYPE} ${URL} "${REF_DESC}" >> ${GITHUB_ENV}
+          printf 'REF_DESC="%s <%s|`%s`>"' ${TYPE} ${URL} ${ID} >> ${GITHUB_ENV}
         env:
           CONFIGURATION_CACHE: ${{ inputs.use-configuration-cache }}
 
