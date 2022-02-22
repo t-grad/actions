@@ -96,7 +96,7 @@ jobs:
             pull_request:*) TYPE="PR" ;;
             *) TYPE="Tag" ;;
           esac
-          echo "REF_DESC=${TYPE} <${URL}|\`${ID}\`" >> ${GITHUB_ENV}
+          echo "REF_DESC=${TYPE} <${URL}|\`${ID}\`>" >> ${GITHUB_ENV}
         env:
           CONFIGURATION_CACHE: ${{ inputs.use-configuration-cache }}
 
@@ -107,7 +107,7 @@ jobs:
           arguments: |
             assemble
             ${{ env.BUILD_PARAMS }}
-            -PnexusUrl=$(( secrets.nexus-url }}
+            -PnexusUrl=${{ secrets.nexus-url }}
             -PnexusUsername=${{ secrets.nexus-username }}
             -PnexusPassword=${{ secrets.nexus-password }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
@@ -119,7 +119,7 @@ jobs:
           arguments: |
             check
             ${{ env.BUILD_PARAMS }}
-            -PnexusUrl=$(( secrets.nexus-url }}
+            -PnexusUrl=${{ secrets.nexus-url }}
             -PnexusUsername=${{ secrets.nexus-username }}
             -PnexusPassword=${{ secrets.nexus-password }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
