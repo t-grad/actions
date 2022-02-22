@@ -1,0 +1,150 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        description: JDK version for gradle build
+        required: false
+        default: '17'
+      java-distribution:
+        type: string
+        description: JDK distribution for gradle build
+        required: false
+        default: temurin
+      use-configuration-cache:
+        type: boolean
+        description: Enable Gradle configuration cache
+        required: false
+        default: false
+      slack-channel:
+        type: string
+        description: Slack channel for notifications, enable notifications if not empty
+        required: false
+        default: ''
+    secrets:
+      nexus-url:
+        description: Nexus base URL
+        required: true
+      nexus-username:
+        description: Nexus username
+        required: true
+      nexus-password:
+        description: Nexus password
+        required: true
+      slack-bot-token:
+        description: Slack bot token
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_type == 'push' && github.ref || github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  wrapper:
+    name: Validate Gradle Wrapper
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs:
+      - wrapper
+    env:
+      BASE_URL: ${{ github.server_url }}/${{ github.repository }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: ${{ inputs.java-distribution }}
+
+      - name: Configuration
+        run: |
+          set -euo pipefail
+          
+          BUILD_PARAMS="-Prelease.useLastTag=$([[ "${GITHUB_REF}" = refs/tags/v* ]] && echo true || echo false)"
+          [[ "${CONFIGURATION_CACHE}" = true ]] && BUILD_PARAMS="${BUILD_PARAMS} --configuration-cache"
+          printf 'BUILD_PARAMS="%s"' "${BUILD_PARAMS}" >> ${GITHUB_ENV}
+          
+          ID=${GITHUB_REF_NAME:-$GITHUB_SHA}
+          URL=${BASE_URL}/tree/${ID}
+          if [[ ${GITHUB_EVENT_NAME} = pull_request ]] ; then
+            ID=${ID%/*} # keep only PR number
+            URL=${BASE_URL}/pulls/${ID}
+          fi
+          
+          case ${GITHUB_EVENT_NAME}:${GITHUB_REF_TYPE}:${GITHUB_REF_NAME} ; in
+            push:tag:v*) TYPE="Release" ;;
+            push:branch:*) TYPE="Branch" ;;
+            pull_request:*) TYPE="PR" ;;
+            *) TYPE="Tag" ;;
+          esac
+          printf 'REF_DESC="%s <%s|`%s`>"' ${TYPE} ${URL} "${REF_DESC}" >> ${GITHUB_ENV}
+        env:
+          CONFIGURATION_CACHE: ${{ inputs.use-configuration-cache }}
+
+      - name: Build
+        id: gradle-build
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: |
+            assemble
+            ${{ env.BUILD_PARAMS }}
+            -PnexusUrl=$(( secrets.nexus-url }}
+            -PnexusUsername=${{ secrets.nexus-username }}
+            -PnexusPassword=${{ secrets.nexus-password }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Run tests and checks
+        id: gradle-check
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: |
+            check
+            ${{ env.BUILD_PARAMS }}
+            -PnexusUrl=$(( secrets.nexus-url }}
+            -PnexusUsername=${{ secrets.nexus-username }}
+            -PnexusPassword=${{ secrets.nexus-password }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Slack notification
+        if: ${{ !!inputs.slack-channel && always() }}
+        uses: slackapi/slack-github-action@v1.18.0
+        with:
+          channel-id: ${{ inputs.slack-channel }}
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "header", 
+                  "text": {"type": "plain_text", "text": "${{ github.repository }} build"}
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {"type": "mrkdwn", "text": "${{ env.REF_DESC }}"},
+                    {"type": "mrkdwn", "text": "Status: *${{ job.status }}*"},
+                    {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
+                    {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.slack-bot-token }}
