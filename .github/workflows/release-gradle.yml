@@ -76,7 +76,7 @@ jobs:
                 {
                   "type": "section",
                   "fields": [
-                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${ github.ref_name }}`>"},
+                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${{ github.ref_name }}`>"},
                     {"type": "mrkdwn", "text": "Status: *started*"},
                     {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
                     {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
@@ -116,7 +116,7 @@ jobs:
                 {
                   "type": "section",
                   "fields": [
-                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${ github.ref_name }}`>"},
+                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${{ github.ref_name }}`>"},
                     {"type": "mrkdwn", "text": "Status: *${{ job.status }}*"},
                     {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
                     {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
