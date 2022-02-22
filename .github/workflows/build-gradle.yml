@@ -89,7 +89,7 @@ jobs:
             URL=${BASE_URL}/pulls/${ID}
           fi
           
-          case ${GITHUB_EVENT_NAME}:${GITHUB_REF_TYPE}:${GITHUB_REF_NAME} ; in
+          case ${GITHUB_EVENT_NAME}:${GITHUB_REF_TYPE}:${GITHUB_REF_NAME} in
             push:tag:v*) TYPE="Release" ;;
             push:branch:*) TYPE="Branch" ;;
             pull_request:*) TYPE="PR" ;;
