@@ -130,6 +130,7 @@ jobs:
           channel-id: ${{ inputs.slack-channel }}
           payload: |
             {
+              "text": "${{ github.repository }} build *${{ job.status }}*: ${{ env.REF_DESC }}",
               "blocks": [
                 {
                   "type": "header", 
