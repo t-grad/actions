@@ -94,7 +94,6 @@ jobs:
           arguments: |
             publish
             -Prelease.useLastTag=true
-            -Prelease.approve=true
             -PnexusUrl=${{ secrets.nexus-url }}
             -PnexusUsername=${{ secrets.nexus-username }}
             -PnexusPassword=${{ secrets.nexus-password }}
