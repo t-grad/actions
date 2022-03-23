@@ -38,10 +38,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_type == 'push' && github.ref || github.event.number }}
-  cancel-in-progress: true
-
 env:
   SLACK_CHANNEL: ${{ secrets.slack-channel }}
 
