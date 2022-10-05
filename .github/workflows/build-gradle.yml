@@ -96,29 +96,28 @@ jobs:
         env:
           CONFIGURATION_CACHE: ${{ inputs.use-configuration-cache }}
 
-      - name: Build
-        id: gradle-build
+      - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: |
-            assemble
-            ${{ env.BUILD_PARAMS }}
-            -PnexusUrl=${{ secrets.nexus-url }}
-            -PnexusUsername=${{ secrets.nexus-username }}
-            -PnexusPassword=${{ secrets.nexus-password }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Build
+        id: gradle-build
+        run: |
+          ./gradlew assemble \
+            ${{ env.BUILD_PARAMS }} \
+            -PnexusUrl=${{ secrets.nexus-url }} \
+            -PnexusUsername=${{ secrets.nexus-username }} \
+            -PnexusPassword=${{ secrets.nexus-password }}
 
       - name: Run tests and checks
         id: gradle-check
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: |
-            check
-            ${{ env.BUILD_PARAMS }}
-            -PnexusUrl=${{ secrets.nexus-url }}
-            -PnexusUsername=${{ secrets.nexus-username }}
+        run: |
+          ./gradlew check \
+            ${{ env.BUILD_PARAMS }} \
+            -PnexusUrl=${{ secrets.nexus-url }} \
+            -PnexusUsername=${{ secrets.nexus-username }} \
             -PnexusPassword=${{ secrets.nexus-password }}
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Slack notification
         if: ${{ !!env.SLACK_CHANNEL && always() }}

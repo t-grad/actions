@@ -83,17 +83,19 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.slack-bot-token }}
 
-      - name: Publish
-        id: gradle-publish
+      - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: |
-            publish
-            -Prelease.useLastTag=true
-            -PnexusUrl=${{ secrets.nexus-url }}
-            -PnexusUsername=${{ secrets.nexus-username }}
-            -PnexusPassword=${{ secrets.nexus-password }}
           cache-read-only: true
+
+      - name: Build
+        id: gradle-publish
+        run: |
+          ./gradlew publish \
+            -Prelease.useLastTag=true \
+            -PnexusUrl=${{ secrets.nexus-url }} \
+            -PnexusUsername=${{ secrets.nexus-username }} \
+            -PnexusPassword=${{ secrets.nexus-password }}
 
       - name: Slack notification
         if: ${{ always() }}
