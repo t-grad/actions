@@ -11,7 +11,7 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
-    "@actions/core": "^1.5.0",
+    "@actions/core": "^1.10.0",
     "@actions/io": "^1.1.1",
     "ts-dedent": "^2.2.0",
     "xmlbuilder2": "^3.0.2",
