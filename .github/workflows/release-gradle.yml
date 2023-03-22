@@ -23,12 +23,6 @@ on:
       nexus-password:
         description: Nexus password
         required: true
-      slack-bot-token:
-        description: Slack bot token
-        required: true
-      slack-channel:
-        description: Slack channel id for notifications, enable notifications if not empty
-        required: true
 
 permissions:
   contents: read
@@ -57,32 +51,6 @@ jobs:
           java-version: ${{ inputs.java-version }}
           distribution: ${{ inputs.java-distribution }}
 
-      - name: Slack notification
-        uses: slackapi/slack-github-action@v1.18.0
-        with:
-          channel-id: ${{ secrets.slack-channel }}
-          payload: |
-            {
-              "text": "${{ github.repository }} release ${{ github.ref_name }} *started*",
-              "blocks": [
-                {
-                  "type": "header", 
-                  "text": {"type": "plain_text", "text": "${{ github.repository }} release"}
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${{ github.ref_name }}`>"},
-                    {"type": "mrkdwn", "text": "Status: *started*"},
-                    {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
-                    {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.slack-bot-token }}
-
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
@@ -96,30 +64,3 @@ jobs:
             -PnexusUrl=${{ secrets.nexus-url }} \
             -PnexusUsername=${{ secrets.nexus-username }} \
             -PnexusPassword=${{ secrets.nexus-password }}
-
-      - name: Slack notification
-        if: ${{ always() }}
-        uses: slackapi/slack-github-action@v1.18.0
-        with:
-          channel-id: ${{ secrets.slack-channel }}
-          payload: |
-            {
-              "text": "${{ github.repository }} release ${{ github.ref_name }} *${{ job.status }}*",
-              "blocks": [
-                {
-                  "type": "header", 
-                  "text": {"type": "plain_text", "text": "${{ github.repository }} release"}
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {"type": "mrkdwn", "text": "Release <${{ env.BASE_URL }}/tree/${{ github.ref_name }}|`${{ github.ref_name }}`>"},
-                    {"type": "mrkdwn", "text": "Status: *${{ job.status }}*"},
-                    {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
-                    {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.slack-bot-token }}

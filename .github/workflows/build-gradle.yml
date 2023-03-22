@@ -28,12 +28,6 @@ on:
       nexus-password:
         description: Nexus password
         required: true
-      slack-bot-token:
-        description: Slack bot token
-        required: false
-      slack-channel:
-        description: Slack channel id for notifications, enable notifications if not empty
-        required: false
 
 permissions:
   contents: read
@@ -118,30 +112,3 @@ jobs:
             -PnexusUrl=${{ secrets.nexus-url }} \
             -PnexusUsername=${{ secrets.nexus-username }} \
             -PnexusPassword=${{ secrets.nexus-password }}
-
-      - name: Slack notification
-        if: ${{ !!env.SLACK_CHANNEL && always() }}
-        uses: slackapi/slack-github-action@v1.18.0
-        with:
-          channel-id: ${{ env.SLACK_CHANNEL }}
-          payload: |
-            {
-              "text": "${{ github.repository }} build *${{ job.status }}*: ${{ env.REF_DESC }}",
-              "blocks": [
-                {
-                  "type": "header", 
-                  "text": {"type": "plain_text", "text": "${{ github.repository }} build"}
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {"type": "mrkdwn", "text": "${{ env.REF_DESC }}"},
-                    {"type": "mrkdwn", "text": "Status: *${{ job.status }}*"},
-                    {"type": "mrkdwn", "text": "JDK: *${{ inputs.java-version }} (${{ inputs.java-distribution }})*"},
-                    {"type": "mrkdwn", "text": "<${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}|Workflow run>"}
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.slack-bot-token }}
