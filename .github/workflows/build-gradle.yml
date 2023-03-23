@@ -19,21 +19,18 @@ on:
         required: false
         default: false
     secrets:
-      nexus-url:
+      nexus_url:
         description: Nexus base URL
         required: true
-      nexus-username:
+      nexus_username:
         description: Nexus username
         required: true
-      nexus-password:
+      nexus_password:
         description: Nexus password
         required: true
 
 permissions:
   contents: read
-
-env:
-  SLACK_CHANNEL: ${{ secrets.slack-channel }}
 
 jobs:
   wrapper:
@@ -100,15 +97,15 @@ jobs:
         run: |
           ./gradlew assemble \
             ${{ env.BUILD_PARAMS }} \
-            -PnexusUrl=${{ secrets.nexus-url }} \
-            -PnexusUsername=${{ secrets.nexus-username }} \
-            -PnexusPassword=${{ secrets.nexus-password }}
+            -PnexusUrl=${{ secrets.nexus_url }} \
+            -PnexusUsername=${{ secrets.nexus_username }} \
+            -PnexusPassword=${{ secrets.nexus_password }}
 
       - name: Run tests and checks
         id: gradle-check
         run: |
           ./gradlew check \
             ${{ env.BUILD_PARAMS }} \
-            -PnexusUrl=${{ secrets.nexus-url }} \
-            -PnexusUsername=${{ secrets.nexus-username }} \
-            -PnexusPassword=${{ secrets.nexus-password }}
+            -PnexusUrl=${{ secrets.nexus_url }} \
+            -PnexusUsername=${{ secrets.nexus_username }} \
+            -PnexusPassword=${{ secrets.nexus_password }}

@@ -14,13 +14,13 @@ on:
         required: false
         default: temurin
     secrets:
-      nexus-url:
+      nexus_url:
         description: Nexus base URL
         required: true
-      nexus-username:
+      nexus_username:
         description: Nexus username
         required: true
-      nexus-password:
+      nexus_password:
         description: Nexus password
         required: true
 
@@ -61,6 +61,6 @@ jobs:
         run: |
           ./gradlew publish \
             -Prelease.useLastTag=true \
-            -PnexusUrl=${{ secrets.nexus-url }} \
-            -PnexusUsername=${{ secrets.nexus-username }} \
-            -PnexusPassword=${{ secrets.nexus-password }}
+            -PnexusUrl=${{ secrets.nexus_url }} \
+            -PnexusUsername=${{ secrets.nexus_username }} \
+            -PnexusPassword=${{ secrets.nexus_password }}
