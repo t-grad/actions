@@ -28,9 +28,21 @@ on:
       nexus_password:
         description: Nexus password
         required: true
+      zulip_api_key:
+        description: Zulip bot api key
+        required: false
+      zulip_email:
+        description: Zulip bot email
+        required: false
+      zulip_url:
+        description: Zulip organization URL
+        required: false
 
 permissions:
   contents: read
+
+env:
+  ZULIP_URL: ${{ secrets.zulip_url }}
 
 jobs:
   wrapper:
@@ -83,7 +95,7 @@ jobs:
             pull_request:*) TYPE="PR" ;;
             *) TYPE="Tag" ;;
           esac
-          echo "REF_DESC=${TYPE} <${URL}|\`${ID}\`>" >> ${GITHUB_ENV}
+          echo "REF_DESC=${TYPE} [\`${ID}\`](${URL})" >> ${GITHUB_ENV}
         env:
           CONFIGURATION_CACHE: ${{ inputs.use-configuration-cache }}
 
@@ -109,3 +121,20 @@ jobs:
             -PnexusUrl=${{ secrets.nexus_url }} \
             -PnexusUsername=${{ secrets.nexus_username }} \
             -PnexusPassword=${{ secrets.nexus_password }}
+
+      - name: Zulip notification
+        uses: zulip/github-actions-zulip/send-message@v1
+        if: ${{ !!env.ZULIP_URL && always() }}
+        with:
+          api-key: ${{ secrets.zulip_api_key }}
+          email: ${{ secrets.zulip_email }}
+          organization-url: ${{ secrets.zulip_url }}
+          type: stream
+          to: dev
+          topic: GitHub Notifications
+          content: |
+            **${{ github.repository }}** build *${{ job.status }}*: ${{ env.REF_DESC }}
+
+            JDK: *${{ inputs.java-version }}* (${{ inputs.java-distribution }})
+
+            Workflow run ${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}

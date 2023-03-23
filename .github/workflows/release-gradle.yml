@@ -23,9 +23,21 @@ on:
       nexus_password:
         description: Nexus password
         required: true
+      zulip_api_key:
+        description: Zulip bot api key
+        required: false
+      zulip_email:
+        description: Zulip bot email
+        required: false
+      zulip_url:
+        description: Zulip organization URL
+        required: false
 
 permissions:
   contents: read
+
+env:
+  ZULIP_URL: ${{ secrets.zulip_url }}
 
 jobs:
   release:
@@ -51,6 +63,25 @@ jobs:
           java-version: ${{ inputs.java-version }}
           distribution: ${{ inputs.java-distribution }}
 
+      - name: Zulip notification
+        uses: zulip/github-actions-zulip/send-message@v1
+        if: ${{ !!env.ZULIP_URL && always() }}
+        with:
+          api-key: ${{ secrets.zulip_api_key }}
+          email: ${{ secrets.zulip_email }}
+          organization-url: ${{ secrets.zulip_url }}
+          type: stream
+          to: dev
+          topic: GitHub Notifications
+          content: |
+            **${{ github.repository }}** release ${{ github.ref_name }} *started*
+
+            Release [`${{ github.ref_name }}`](${{ env.BASE_URL }}/tree/${{ github.ref_name }})
+
+            JDK: *${{ inputs.java-version }}* (${{ inputs.java-distribution }})
+
+            Workflow run ${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}
+
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
@@ -64,3 +95,22 @@ jobs:
             -PnexusUrl=${{ secrets.nexus_url }} \
             -PnexusUsername=${{ secrets.nexus_username }} \
             -PnexusPassword=${{ secrets.nexus_password }}
+
+      - name: Zulip notification
+        uses: zulip/github-actions-zulip/send-message@v1
+        if: ${{ !!env.ZULIP_URL && always() }}
+        with:
+          api-key: ${{ secrets.zulip_api_key }}
+          email: ${{ secrets.zulip_email }}
+          organization-url: ${{ secrets.zulip_url }}
+          type: stream
+          to: dev
+          topic: GitHub Notifications
+          content: |
+            **${{ github.repository }}** release ${{ github.ref_name }} *${{ job.status }}*
+
+            Release [`${{ github.ref_name }}`](${{ env.BASE_URL }}/tree/${{ github.ref_name }})
+
+            JDK: *${{ inputs.java-version }}* (${{ inputs.java-distribution }})
+
+            Workflow run ${{ env.BASE_URL }}/actions/runs/${{ github.run_id }}
