@@ -18,6 +18,11 @@ on:
         description: Enable Gradle configuration cache
         required: false
         default: false
+      with-quarkus-docker-image:
+        type: boolean
+        description: Build container image in quarkus project
+        required: false
+        default: false
     secrets:
       nexus_url:
         description: Nexus base URL
@@ -43,6 +48,7 @@ permissions:
 
 env:
   ZULIP_URL: ${{ secrets.zulip_url }}
+  QUARKUS_CONTAINER_IMAGE_BUILD: ${{ inputs.with-quarkus-docker-image }}
 
 jobs:
   wrapper:

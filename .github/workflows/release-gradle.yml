@@ -13,6 +13,16 @@ on:
         description: JDK distribution for gradle build
         required: false
         default: temurin
+      with-quarkus-docker-image:
+        type: boolean
+        description: Build container image in quarkus project
+        required: false
+        default: false
+      docker-image-extra-tags:
+        type: string
+        description: Comma separated list of additional tags for docker image
+        required: false
+        default: ""
     secrets:
       nexus_url:
         description: Nexus base URL
@@ -23,6 +33,15 @@ on:
       nexus_password:
         description: Nexus password
         required: true
+      docker_registry:
+        description: Docker registry (host and port)
+        required: false
+      docker_username:
+        description: Docker registry username
+        required: false
+      docker_password:
+        description: Docker registry password
+        required: false
       zulip_api_key:
         description: Zulip bot api key
         required: false
@@ -38,6 +57,12 @@ permissions:
 
 env:
   ZULIP_URL: ${{ secrets.zulip_url }}
+  QUARKUS_CONTAINER_IMAGE_BUILD: ${{ inputs.with-quarkus-docker-image }}
+  QUARKUS_CONTAINER_IMAGE_PUSH: ${{ inputs.with-quarkus-docker-image }}
+  QUARKUS_CONTAINER_IMAGE_REGISTRY: ${{ secrets.docker_registry }}
+  QUARKUS_CONTAINER_IMAGE_USERNAME: ${{ secrets.docker_username }}
+  QUARKUS_CONTAINER_IMAGE_PASSWORD: ${{ secrets.docker_password }}
+  QUARKUS_CONTAINER_IMAGE_ADDITIONAL_TAGS: ${{ inputs.docker-image-extra-tags }}
 
 jobs:
   release:
@@ -90,7 +115,7 @@ jobs:
       - name: Publish
         id: gradle-publish
         run: |
-          ./gradlew publish \
+          ./gradlew publish build \
             -Prelease.useLastTag=true \
             -PnexusUrl=${{ secrets.nexus_url }} \
             -PnexusUsername=${{ secrets.nexus_username }} \
